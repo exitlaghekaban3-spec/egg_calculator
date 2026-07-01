@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Egg Hatching Calculator</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            width: 400px;
+            border: 1px solid #333;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ffaa00;
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #bbb;
+        }
+
+        select,
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background-color: #2d2d2d;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .checkbox-group input {
+            margin-right: 10px;
+            transform: scale(1.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #ffaa00;
+            color: #121212;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background-color: #e69900;
+        }
+
+        .results {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px dashed #444;
+        }
+
+        .results h3 {
+            color: #00ffcc;
+            margin-top: 0;
+        }
+
+        .res-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .res-val {
+            font-weight: bold;
+            color: #ffaa00;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>🥚 Egg Calculator</h2>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Select Location:</label>
+                <select name="location">
+                    {% for loc in locations %}
+                    <!-- Запоминаем выбранную локацию -->
+                    <option value="{{ loc }}" {% if result and result.location==loc %}selected{% endif %}>{{ loc }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Pets per open? (e.g., 1, 3, 8):</label>
+                <!-- Запоминаем количество яиц -->
+                <input type="text" name="eggs_at_once"
+                    value="{% if result %}{{ result.user_eggs_at_once }}{% else %}1{% endif %}" required>
+            </div>
+
+            <div class="checkbox-group">
+                <!-- Запоминаем галочку геймпасса -->
+                <input type="checkbox" name="gamepass" id="gp" {% if result and result.has_gamepass %}checked{% endif
+                    %}>
+                <label for="gp">Fast hatch gamepass? (100% Boost)</label>
+            </div>
+
+            <div class="form-group">
+                <label>Time to open in hours:</label>
+                <!-- Запоминаем время фарма -->
+                <input type="text" name="hours" value="{% if result %}{{ result.user_hours }}{% else %}10{% endif %}"
+                    required>
+            </div>
+
+            <button type="submit">Calculate Cost</button>
+        </form>
+
+        {% if result %}
+        <div class="results">
+            <h3>📊 Calculation Results:</h3>
+            <div class="res-row"><span>Location:</span> <span class="res-val">{{ result.location }}</span></div>
+            <div class="res-row"><span>Egg Price:</span> <span class="res-val">{{ result.egg_price }}</span></div>
+            <div class="res-row"><span>Total Eggs Opened:</span> <span class="res-val">{{ result.total_eggs }}</span>
+            </div>
+            <div class="res-row"><span>Total Cost:</span> <span class="res-val" style="color: #00ffcc;">{{
+                    result.total_cost }}</span></div>
+        </div>
+        {% endif %}
+    </div>
+
+</body>
+
+</html>
