@@ -1,13 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 
-# =====================================================================
-# 1. НАСТРОЙКА ПРИЛОЖЕНИЯ И СЕКРЕТНОГО КЛЮЧА
-# =====================================================================
 app = Flask(__name__)
-# Секретный ключ нужен Flask, чтобы безопасно хранить результаты расчетов в памяти
 app.secret_key = 'anime-astral-egg-calculator-secret-key'
 
-# Словарь с суффиксами для перевода игровых значений в числа
+# Extended suffixes to match your rank calculator
 SUFFIXES = {
     'K': 1_000,
     'M': 1_000_000,
@@ -20,13 +16,12 @@ SUFFIXES = {
 }
 
 def parse_game_number(val_str):
-    """Превращает строковое значение из игры (например, '3.5K') в число."""
     if not val_str:
         return 0.0
-    val_str = str(val_str).strip().upper()
+    val_str = str(val_str).strip().upper().replace(',', '.')
     
-    # Ищем, заканчивается ли строка на известный суффикс (например, QA или K)
-    for suffix, multiplier in SUFFIXES.items():
+    sorted_suffixes = sorted(SUFFIXES.items(), key=lambda x: len(x[0]), reverse=True)
+    for suffix, multiplier in sorted_suffixes:
         if val_str.endswith(suffix):
             num_part = val_str[:-len(suffix)].strip()
             try:
@@ -39,22 +34,16 @@ def parse_game_number(val_str):
         return 0.0
 
 def format_game_number(num):
-    """Превращает большое число обратно в красивый игровой формат."""
     if num == 0:
         return "0"
     abs_num = abs(num)
-    
-    # Сортируем суффиксы от самых больших к меньшим
     for suffix, multiplier in sorted(SUFFIXES.items(), key=lambda x: x[1], reverse=True):
         if abs_num >= multiplier:
             formatted = f"{num / multiplier:.2f}".rstrip('0').rstrip('.')
             return f"{formatted}{suffix}"
-            
     return f"{num:.2f}".rstrip('0').rstrip('.')
 
-# =====================================================================
-# 2. ТВОИ ЛОКАЦИИ (СЮДА ДОБАВЛЯЙ НОВЫЕ)
-# =====================================================================
+# English locations setup
 LOCATIONS = {
     "Ninja Village": parse_game_number("50"),
     "Namek City": parse_game_number("3.5K"),
@@ -67,45 +56,86 @@ LOCATIONS = {
     "Fire City": parse_game_number("75SX")
 }
 
-# =====================================================================
-# 3. ЛОГИКА САЙТА (БЕЗ ПОВТОРНОЙ ОТПРАВКИ ФОРМЫ)
-# =====================================================================
+# Generate location list with prices for the select menu
+LOCATION_OPTIONS = [(loc, f"{loc} ({format_game_number(price)})") for loc, price in LOCATIONS.items()]
+
+def format_time(seconds):
+    if seconds <= 0:
+        return "0s"
+    minutes = seconds // 60
+    remaining_seconds = int(seconds % 60)
+    hours = minutes // 60
+    remaining_minutes = int(minutes % 60)
+    days = hours // 24
+    remaining_hours = int(hours % 24)
+    
+    parts = []
+    if days > 0: parts.append(f"{int(days)}d")
+    if hours > 0: parts.append(f"{remaining_hours}h")
+    if minutes > 0: parts.append(f"{remaining_minutes}m")
+    if remaining_seconds > 0 or not parts: parts.append(f"{remaining_seconds}s")
+    return " ".join(parts)
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        # 1. Собираем данные из формы
         selected_loc = request.form.get("location")
-        user_money_str = request.form.get("money", "0")
+        money_raw = request.form.get("money", "0").replace(',', '.')
+        selected_suffix = request.form.get("money_suffix", "")
+        hatch_mode = request.form.get("hatch_mode", "1") # 1 egg or 18 eggs
         
-        user_money = parse_game_number(user_money_str)
-        egg_cost = LOCATIONS.get(selected_loc, 0.0)
-        
-        # 2. Считаем математику
-        if egg_cost > 0:
-            total_eggs = int(user_money // egg_cost)
-            leftover = user_money % egg_cost
-        else:
-            total_eggs = 0
-            leftover = user_money
+        try:
+            base_money = float(money_raw)
+        except ValueError:
+            base_money = 0.0
             
-        # 3. Формируем результат расчетов
-        result_data = {
-            "selected_location": selected_loc,
-            "user_money": format_game_number(user_money),
-            "egg_cost": format_game_number(egg_cost),
-            "total_eggs": f"{total_eggs:,}",  # Разделение разрядов запятыми для красоты
-            "leftover": format_game_number(leftover)
-        }
+        money_suffix_value = SUFFIXES.get(selected_suffix, 1)
+        total_user_money = base_money * money_suffix_value
         
-        # 🌟 ХИТРЫЙ ТРЮК: сохраняем результат в сессию и делаем перенаправление!
-        session["calc_result"] = result_data
+        # Base price for 1 single egg opening
+        base_egg_cost = LOCATIONS.get(selected_loc, 0.0)
+        
+        if hatch_mode == "18":
+            # 18 eggs hatch mode uses 1 SX per 30 mins (1800s) on the last location (75SX base)
+            # This perfectly scales the speed across all locations
+            eggs_per_second = 1.0  
+            cost_per_second = (base_egg_cost / 75.0) * (1_000_000_000_000_000_000_000 / 1800.0)
+        else:
+            # Standard single hatch mode (1 egg)
+            eggs_per_second = 1.0
+            cost_per_second = base_egg_cost * eggs_per_second
+
+        if cost_per_second > 0 and total_user_money > 0:
+            time_seconds = total_user_money / cost_per_second
+            time_formatted = format_time(time_seconds)
+            total_eggs_can_hatch = int(time_seconds * eggs_per_second * (18 if hatch_mode == "18" else 1))
+        else:
+            time_formatted = "0s (No money or cost)"
+            total_eggs_can_hatch = 0
+            
+        session["egg_calc_data"] = {
+            "result": {
+                "location": selected_loc,
+                "money_spent": format_game_number(total_user_money),
+                "time_duration": time_formatted,
+                "total_eggs": f"{total_eggs_can_hatch:,}"
+            },
+            "inputs": {
+                "money": money_raw,
+                "money_suffix": selected_suffix,
+                "location": selected_loc,
+                "hatch_mode": hatch_mode
+            }
+        }
         return redirect(url_for("index"))
         
-    # Сюда пользователь попадает при обычном GET-запросе (или после редиректа)
-    # Забираем результат из памяти, если он там есть, и сразу удаляем
-    result = session.pop("calc_result", None)
+    data = session.pop("egg_calc_data", None)
+    result = data.get("result") if data else None
+    inputs = data.get("inputs") if data else {
+        "money": "", "money_suffix": "", "location": "Fire City (Last)", "hatch_mode": "1"
+    }
     
-    return render_template("index.html", locations=LOCATIONS.keys(), result=result)
+    return render_template("index.html", suffixes=SUFFIXES.keys(), locations_options=LOCATION_OPTIONS, result=result, inputs=inputs)
 
 if __name__ == "__main__":
     app.run(debug=True)

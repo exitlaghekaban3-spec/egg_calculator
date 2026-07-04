@@ -3,157 +3,281 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Egg Hatching Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Astral - Egg Time Calculator</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
+        :root {
+            --bg-color: #0f111a;
+            --container-bg: #161925;
+            --accent-color: #00bfff;
+            --accent-hover: #0099cc;
+            --text-color: #ffffff;
+            --text-secondary: #8b92b5;
+            --input-bg: #1f2336;
+            --border-color: #2e344d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
+            padding: 20px;
         }
 
-        .container {
-            background-color: #1e1e1e;
+        .calculator-card {
+            background-color: var(--container-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
             padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-            width: 400px;
-            border: 1px solid #333;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
-        h2 {
+        .header {
             text-align: center;
-            color: #ffaa00;
-            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
         }
 
         .form-group {
             margin-bottom: 20px;
         }
 
-        label {
+        .form-group label {
             display: block;
+            color: var(--text-color);
             margin-bottom: 8px;
-            color: #bbb;
+            font-weight: 600;
+            font-size: 14px;
         }
 
-        select,
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #444;
-            background-color: #2d2d2d;
-            color: white;
-            box-sizing: border-box;
-        }
-
-        .checkbox-group {
+        .input-with-suffix {
             display: flex;
-            align-items: center;
-            margin: 20px 0;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--input-bg);
         }
 
-        .checkbox-group input {
-            margin-right: 10px;
-            transform: scale(1.3);
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #ffaa00;
-            color: #121212;
+        .input-with-suffix input {
+            flex: 1;
+            background: transparent;
             border: none;
-            border-radius: 5px;
+            padding: 12px;
+            color: var(--text-color);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .input-with-suffix select {
+            background-color: var(--border-color);
+            border: none;
+            color: var(--text-color);
+            padding: 0 15px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.2s;
+            outline: none;
+            border-left: 2px solid var(--border-color);
         }
 
-        button:hover {
-            background-color: #e69900;
+        .input-with-suffix select:hover {
+            background-color: #3b4261;
         }
 
-        .results {
+        .standard-select {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-color);
+            font-size: 16px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .gamepass-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .gamepass-options label {
+            flex: 1;
+            text-align: center;
+            background-color: var(--input-bg);
+            border: 2px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: normal;
+            transition: all 0.2s;
+        }
+
+        .gamepass-options input[type="radio"] {
+            display: none;
+        }
+
+        .gamepass-options input[type="radio"]:checked+label {
+            background-color: rgba(0, 191, 255, 0.15);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .btn-calculate {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-calculate:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .result-box {
             margin-top: 25px;
-            padding-top: 20px;
-            border-top: 2px dashed #444;
+            background-color: rgba(0, 191, 255, 0.05);
+            border: 1px dashed var(--accent-color);
+            border-radius: 8px;
+            padding: 20px;
         }
 
-        .results h3 {
-            color: #00ffcc;
-            margin-top: 0;
+        .result-box h3 {
+            color: var(--accent-color);
+            font-size: 16px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            text-align: center;
         }
 
-        .res-row {
+        .result-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 8px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(46, 52, 77, 0.5);
+            padding-bottom: 6px;
         }
 
-        .res-val {
+        .result-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
+        .result-value {
             font-weight: bold;
-            color: #ffaa00;
+            color: #fff;
+        }
+
+        .result-value.highlight {
+            color: #00ff66;
+            font-size: 16px;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
-        <h2>🥚 Egg Calculator</h2>
+    <div class="calculator-card">
+        <div class="header">
+            <h1>Anime Astral</h1>
+            <p>Egg Hatching Duration Calculator</p>
+        </div>
 
-        <form method="POST">
+        <form action="/" method="POST">
             <div class="form-group">
-                <label>Select Location:</label>
-                <select name="location">
-                    {% for loc in locations %}
-                    <!-- Запоминаем выбранную локацию -->
-                    <option value="{{ loc }}" {% if result and result.location==loc %}selected{% endif %}>{{ loc }}
-                    </option>
+                <label for="money">Your Current Money</label>
+                <div class="input-with-suffix">
+                    <input type="number" step="any" name="money" id="money" value="{{ inputs.money }}" required>
+                    <select name="money_suffix">
+                        <option value="" {% if inputs.money_suffix=="" %}selected{% endif %}>No Suffix</option>
+                        {% for suffix in suffixes %}
+                        <option value="{{ suffix }}" {% if inputs.money_suffix==suffix %}selected{% endif %}>{{ suffix
+                            }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Target Location Egg</label>
+                <select name="location" id="location" class="standard-select">
+                    {% for val, label in locations_options %}
+                    <option value="{{ val }}" {% if inputs.location==val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Pets per open?:</label>
-                <!-- Запоминаем количество яиц -->
-                <input type="text" name="eggs_at_once"
-                    value="{% if result %}{{ result.user_eggs_at_once }}{% else %}1{% endif %}" required>
+                <label>Hatch Mode / Gamepass</label>
+                <div class="gamepass-options">
+                    <input type="radio" name="hatch_mode" id="hm_1" value="1" {% if inputs.hatch_mode=="1" %}checked{%
+                        endif %}>
+                    <label for="hm_1">Single Hatch (1 egg)</label>
+
+                    <input type="radio" name="hatch_mode" id="hm_18" value="18" {% if inputs.hatch_mode=="18"
+                        %}checked{% endif %}>
+                    <label for="hm_18">18 Eggs Pass Mode</label>
+                </div>
             </div>
 
-            <div class="checkbox-group">
-                <!-- Запоминаем галочку геймпасса -->
-                <input type="checkbox" name="gamepass" id="gp" {% if result and result.has_gamepass %}checked{% endif
-                    %}>
-                <label for="gp">Fast hatch gamepass?</label>
-            </div>
-
-            <div class="form-group">
-                <label>Time to open in hours:</label>
-                <!-- Запоминаем время фарма -->
-                <input type="text" name="hours" value="{% if result %}{{ result.user_hours }}{% else %}10{% endif %}"
-                    required>
-            </div>
-
-            <button type="submit">Calculate Cost</button>
+            <button type="submit" class="btn-calculate">Calculate Duration</button>
         </form>
 
         {% if result %}
-        <div class="results">
-            <h3>📊 Calculation Results:</h3>
-            <div class="res-row"><span>Location:</span> <span class="res-val">{{ result.location }}</span></div>
-            <div class="res-row"><span>Egg Price:</span> <span class="res-val">{{ result.egg_price }}</span></div>
-            <div class="res-row"><span>Total Eggs Opened:</span> <span class="res-val">{{ result.total_eggs }}</span>
+        <div class="result-box">
+            <h3>Hatch Forecast</h3>
+            <div class="result-row">
+                <span>Selected Area:</span>
+                <span class="result-value">{{ result.location }}</span>
             </div>
-            <div class="res-row"><span>Total Cost:</span> <span class="res-val" style="color: #00ffcc;">{{
-                    result.total_cost }}</span></div>
+            <div class="result-row">
+                <span>Total Budget:</span>
+                <span class="result-value">{{ result.money_spent }}</span>
+            </div>
+            <div class="result-row">
+                <span>Total Eggs Hatched:</span>
+                <span class="result-value">{{ result.total_eggs }}</span>
+            </div>
+            <div class="result-row"
+                style="margin-top: 12px; border-top: 1px solid var(--accent-color); padding-top: 10px;">
+                <span style="font-weight: bold; color: var(--accent-color);">Time Until Out of Money:</span>
+                <span class="result-value highlight">{{ result.time_duration }}</span>
+            </div>
         </div>
         {% endif %}
     </div>
