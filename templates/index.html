@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anime Astral - Egg Time Calculator</title>
+    <title>Anime Astral - Egg Budget Calculator</title>
     <style>
         :root {
             --bg-color: #0f111a;
@@ -74,38 +74,20 @@
             font-size: 14px;
         }
 
-        .input-with-suffix {
-            display: flex;
+        .standard-input {
+            width: 100%;
+            background-color: var(--input-bg);
             border: 2px solid var(--border-color);
             border-radius: 8px;
-            overflow: hidden;
-            background-color: var(--input-bg);
-        }
-
-        .input-with-suffix input {
-            flex: 1;
-            background: transparent;
-            border: none;
             padding: 12px;
             color: var(--text-color);
             font-size: 16px;
             outline: none;
         }
 
-        .input-with-suffix select {
-            background-color: var(--border-color);
-            border: none;
-            color: var(--text-color);
-            padding: 0 15px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            outline: none;
-            border-left: 2px solid var(--border-color);
-        }
-
-        .input-with-suffix select:hover {
-            background-color: #3b4261;
+        .standard-input:focus,
+        .standard-select:focus {
+            border-color: var(--accent-color);
         }
 
         .standard-select {
@@ -205,7 +187,7 @@
 
         .result-value.highlight {
             color: #00ff66;
-            font-size: 16px;
+            font-size: 18px;
         }
     </style>
 </head>
@@ -215,26 +197,24 @@
     <div class="calculator-card">
         <div class="header">
             <h1>Anime Astral</h1>
-            <p>Egg Hatching Duration Calculator</p>
+            <p>Calculate required money for your farming time</p>
         </div>
 
         <form action="/" method="POST">
             <div class="form-group">
-                <label for="money">Your Current Money</label>
-                <div class="input-with-suffix">
-                    <input type="number" step="any" name="money" id="money" value="{{ inputs.money }}" required>
-                    <select name="money_suffix">
-                        <option value="" {% if inputs.money_suffix=="" %}selected{% endif %}>No Suffix</option>
-                        {% for suffix in suffixes %}
-                        <option value="{{ suffix }}" {% if inputs.money_suffix==suffix %}selected{% endif %}>{{ suffix
-                            }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <label for="hours">Farming Duration (Hours)</label>
+                <input type="number" step="any" name="hours" id="hours" class="standard-input"
+                    value="{{ inputs.hours }}" required>
             </div>
 
             <div class="form-group">
-                <label for="location">Target Location Egg</label>
+                <label for="pets_per_open">Pets Per Open</label>
+                <input type="number" name="pets_per_open" id="pets_per_open" class="standard-input"
+                    value="{{ inputs.pets_per_open }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Egg Location Area</label>
                 <select name="location" id="location" class="standard-select">
                     {% for val, label in locations_options %}
                     <option value="{{ val }}" {% if inputs.location==val %}selected{% endif %}>{{ label }}</option>
@@ -243,40 +223,48 @@
             </div>
 
             <div class="form-group">
-                <label>Hatch Mode / Gamepass</label>
+                <label>Fast Open Gamepass</label>
                 <div class="gamepass-options">
-                    <input type="radio" name="hatch_mode" id="hm_1" value="1" {% if inputs.hatch_mode=="1" %}checked{%
+                    <input type="radio" name="fast_open" id="fo_no" value="no" {% if inputs.fast_open=="no" %}checked{%
                         endif %}>
-                    <label for="hm_1">Single Hatch (1 egg)</label>
+                    <label for="fo_no">Off (0.65 hatches/s)</label>
 
-                    <input type="radio" name="hatch_mode" id="hm_18" value="18" {% if inputs.hatch_mode=="18"
+                    <input type="radio" name="fast_open" id="fo_yes" value="yes" {% if inputs.fast_open=="yes"
                         %}checked{% endif %}>
-                    <label for="hm_18">18 Eggs Pass Mode</label>
+                    <label for="fo_yes">On (1.25 hatches/s)</label>
                 </div>
             </div>
 
-            <button type="submit" class="btn-calculate">Calculate Duration</button>
+            <button type="submit" class="btn-calculate">Calculate Required Money</button>
         </form>
 
         {% if result %}
         <div class="result-box">
-            <h3>Hatch Forecast</h3>
+            <h3>Required Budget Forecast</h3>
             <div class="result-row">
                 <span>Selected Area:</span>
                 <span class="result-value">{{ result.location }}</span>
             </div>
             <div class="result-row">
-                <span>Total Budget:</span>
-                <span class="result-value">{{ result.money_spent }}</span>
+                <span>Farming Time:</span>
+                <span class="result-value">{{ result.hours }} hours</span>
             </div>
             <div class="result-row">
-                <span>Total Eggs Hatched:</span>
+                <span>Pets Per Click:</span>
+                <span class="result-value">{{ result.pets_per_open }} pets</span>
+            </div>
+            <div class="result-row">
+                <span>Fast Open Pass:</span>
+                <span class="result-value">{{ result.fast_open }}</span>
+            </div>
+            <div class="result-row">
+                <span>Total Eggs To Open:</span>
                 <span class="result-value">{{ result.total_eggs }}</span>
             </div>
             <div class="result-row"
                 style="margin-top: 12px; border-top: 1px solid var(--accent-color); padding-top: 10px;">
-                <span style="font-weight: bold; color: var(--accent-color);">Time Until Out of Money:</span>
-                <span class="result-value highlight">{{ result.time_duration }}</span>
+                <span style="font-weight: bold; color: var(--accent-color);">Money Needed:</span>
+                <span class="result-value highlight">{{ result.required_money }}</span>
             </div>
         </div>
         {% endif %}

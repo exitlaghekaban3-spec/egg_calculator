@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, redirect, url_for, session
 app = Flask(__name__)
 app.secret_key = 'anime-astral-egg-calculator-secret-key'
 
-# Extended suffixes to match your rank calculator
 SUFFIXES = {
     'K': 1_000,
     'M': 1_000_000,
@@ -19,7 +18,6 @@ def parse_game_number(val_str):
     if not val_str:
         return 0.0
     val_str = str(val_str).strip().upper().replace(',', '.')
-    
     sorted_suffixes = sorted(SUFFIXES.items(), key=lambda x: len(x[0]), reverse=True)
     for suffix, multiplier in sorted_suffixes:
         if val_str.endswith(suffix):
@@ -43,7 +41,6 @@ def format_game_number(num):
             return f"{formatted}{suffix}"
     return f"{num:.2f}".rstrip('0').rstrip('.')
 
-# English locations setup
 LOCATIONS = {
     "Ninja Village": parse_game_number("50"),
     "Namek City": parse_game_number("3.5K"),
@@ -53,78 +50,59 @@ LOCATIONS = {
     "Slayer Village": parse_game_number("250B"),
     "Clover Island": parse_game_number("175T"),
     "Summer Art Online": parse_game_number("25QA"),
-    "Fire City": parse_game_number("75SX")
+    "Fire City (Last)": parse_game_number("75SX")
 }
 
-# Generate location list with prices for the select menu
 LOCATION_OPTIONS = [(loc, f"{loc} ({format_game_number(price)})") for loc, price in LOCATIONS.items()]
-
-def format_time(seconds):
-    if seconds <= 0:
-        return "0s"
-    minutes = seconds // 60
-    remaining_seconds = int(seconds % 60)
-    hours = minutes // 60
-    remaining_minutes = int(minutes % 60)
-    days = hours // 24
-    remaining_hours = int(hours % 24)
-    
-    parts = []
-    if days > 0: parts.append(f"{int(days)}d")
-    if hours > 0: parts.append(f"{remaining_hours}h")
-    if minutes > 0: parts.append(f"{remaining_minutes}m")
-    if remaining_seconds > 0 or not parts: parts.append(f"{remaining_seconds}s")
-    return " ".join(parts)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         selected_loc = request.form.get("location")
-        money_raw = request.form.get("money", "0").replace(',', '.')
-        selected_suffix = request.form.get("money_suffix", "")
-        hatch_mode = request.form.get("hatch_mode", "1") # 1 egg or 18 eggs
+        hours_raw = request.form.get("hours", "1").replace(',', '.')
+        pets_per_open_raw = request.form.get("pets_per_open", "1")
+        has_fast_open = request.form.get("fast_open") == "yes"
         
         try:
-            base_money = float(money_raw)
+            hours = float(hours_raw)
         except ValueError:
-            base_money = 0.0
+            hours = 1.0
             
-        money_suffix_value = SUFFIXES.get(selected_suffix, 1)
-        total_user_money = base_money * money_suffix_value
-        
-        # Base price for 1 single egg opening
-        base_egg_cost = LOCATIONS.get(selected_loc, 0.0)
-        
-        if hatch_mode == "18":
-            # 18 eggs hatch mode uses 1 SX per 30 mins (1800s) on the last location (75SX base)
-            # This perfectly scales the speed across all locations
-            eggs_per_second = 1.0  
-            cost_per_second = (base_egg_cost / 75.0) * (1_000_000_000_000_000_000_000 / 1800.0)
-        else:
-            # Standard single hatch mode (1 egg)
-            eggs_per_second = 1.0
-            cost_per_second = base_egg_cost * eggs_per_second
-
-        if cost_per_second > 0 and total_user_money > 0:
-            time_seconds = total_user_money / cost_per_second
-            time_formatted = format_time(time_seconds)
-            total_eggs_can_hatch = int(time_seconds * eggs_per_second * (18 if hatch_mode == "18" else 1))
-        else:
-            time_formatted = "0s (No money or cost)"
-            total_eggs_can_hatch = 0
+        try:
+            pets_per_open = int(pets_per_open_raw)
+        except ValueError:
+            pets_per_open = 1
             
+        # Переводим часы в секунды
+        total_seconds = hours * 3600
+        
+        # Базовая цена одного яйца в выбранной локации
+        single_egg_cost = LOCATIONS.get(selected_loc, 0.0)
+        
+        # Скорость открытий в секунду (Базовая vs Геймпас Fast Open)
+        hatches_per_second = 1.25 if has_fast_open else 0.65
+        
+        # Считаем полную стоимость за одну секунду фарма
+        cost_per_second = single_egg_cost * pets_per_open * hatches_per_second
+        
+        # Итоговый нужный бюджет
+        required_money = cost_per_second * total_seconds
+        total_eggs_to_open = int(hatches_per_second * pets_per_open * total_seconds)
+        
         session["egg_calc_data"] = {
             "result": {
                 "location": selected_loc,
-                "money_spent": format_game_number(total_user_money),
-                "time_duration": time_formatted,
-                "total_eggs": f"{total_eggs_can_hatch:,}"
+                "hours": hours,
+                "pets_per_open": pets_per_open,
+                "fast_open": "Enabled" if has_fast_open else "Disabled",
+                "total_eggs": f"{total_eggs_to_open:,}",
+                "required_money": format_game_number(required_money)
             },
             "inputs": {
-                "money": money_raw,
-                "money_suffix": selected_suffix,
+                "hours": hours_raw,
+                "pets_per_open": pets_per_open_raw,
                 "location": selected_loc,
-                "hatch_mode": hatch_mode
+                "fast_open": "yes" if has_fast_open else "no"
             }
         }
         return redirect(url_for("index"))
@@ -132,10 +110,10 @@ def index():
     data = session.pop("egg_calc_data", None)
     result = data.get("result") if data else None
     inputs = data.get("inputs") if data else {
-        "money": "", "money_suffix": "", "location": "Fire City (Last)", "hatch_mode": "1"
+        "hours": "1", "pets_per_open": "18", "location": "Fire City (Last)", "fast_open": "yes"
     }
     
-    return render_template("index.html", suffixes=SUFFIXES.keys(), locations_options=LOCATION_OPTIONS, result=result, inputs=inputs)
+    return render_template("index.html", locations_options=LOCATION_OPTIONS, result=result, inputs=inputs)
 
 if __name__ == "__main__":
     app.run(debug=True)
