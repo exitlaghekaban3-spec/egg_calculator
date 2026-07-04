@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 app = Flask(__name__)
 app.secret_key = 'anime-astral-egg-calculator-secret-key'
 
+# Полный список суффиксов из твоей системы до βM
 SUFFIXES = {
     'K': 1_000,
     'M': 1_000_000,
@@ -12,15 +13,34 @@ SUFFIXES = {
     'QI': 1_000_000_000_000_000_000,
     'SX': 1_000_000_000_000_000_000_000,
     'SP': 1_000_000_000_000_000_000_000_000,
+    'OC': 1_000_000_000_000_000_000_000_000_000,
+    'NO': 1_000_000_000_000_000_000_000_000_000_000,
+    'DE': 1_000_000_000_000_000_000_000_000_000_000_000,
+    'βA': 1_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βB': 1_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βC': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βD': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βE': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βF': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βG': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βH': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βI': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βJ': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βK': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βL': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'βM': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
 }
 
 def parse_game_number(val_str):
     if not val_str:
         return 0.0
-    val_str = str(val_str).strip().upper().replace(',', '.')
+    val_str = str(val_str).strip().replace(',', '.')
+    # Для корректной сверки βA/βB и обычной B, переводим в upper только если это не греческая бета
+    val_upper = val_str.upper() if 'β' not in val_str else val_str
+    
     sorted_suffixes = sorted(SUFFIXES.items(), key=lambda x: len(x[0]), reverse=True)
     for suffix, multiplier in sorted_suffixes:
-        if val_str.endswith(suffix):
+        if val_upper.endswith(suffix.upper()) or val_str.endswith(suffix):
             num_part = val_str[:-len(suffix)].strip()
             try:
                 return float(num_part) * multiplier
@@ -50,7 +70,7 @@ LOCATIONS = {
     "Slayer Village": parse_game_number("250B"),
     "Clover Island": parse_game_number("175T"),
     "Summer Art Online": parse_game_number("25QA"),
-    "Fire City (Last)": parse_game_number("75SX")
+    "Fire City": parse_game_number("75SX")
 }
 
 LOCATION_OPTIONS = [(loc, f"{loc} ({format_game_number(price)})") for loc, price in LOCATIONS.items()]
@@ -73,19 +93,16 @@ def index():
         except ValueError:
             pets_per_open = 1
             
-        # Переводим часы в секунды
         total_seconds = hours * 3600
-        
-        # Базовая цена одного яйца в выбранной локации
         single_egg_cost = LOCATIONS.get(selected_loc, 0.0)
         
-        # Скорость открытий в секунду (Базовая vs Геймпас Fast Open)
-        hatches_per_second = 1.25 if has_fast_open else 0.65
+        # 🎯 ТОЧНАЯ ИГРОВАЯ СКОРОСТЬ КЛИКОВ В СЕКУНДУ (из скриншота)
+        # С геймпассом: 1 клик каждые 1.67с. Без геймпасса: 1 клик каждые 3.35с.
+        hatches_per_second = (1.0 / 1.67) if has_fast_open else (1.0 / 3.35)
         
-        # Считаем полную стоимость за одну секунду фарма
+        # Стоимость секундного фарма: цена 1 яйца * сколько яиц падает за клик * сколько кликов в секунду
         cost_per_second = single_egg_cost * pets_per_open * hatches_per_second
         
-        # Итоговый нужный бюджет
         required_money = cost_per_second * total_seconds
         total_eggs_to_open = int(hatches_per_second * pets_per_open * total_seconds)
         
@@ -94,7 +111,7 @@ def index():
                 "location": selected_loc,
                 "hours": hours,
                 "pets_per_open": pets_per_open,
-                "fast_open": "Enabled" if has_fast_open else "Disabled",
+                "fast_open": "Enabled (1 hatch every 1.67s)" if has_fast_open else "Disabled (1 hatch every 3.35s)",
                 "total_eggs": f"{total_eggs_to_open:,}",
                 "required_money": format_game_number(required_money)
             },
@@ -110,7 +127,7 @@ def index():
     data = session.pop("egg_calc_data", None)
     result = data.get("result") if data else None
     inputs = data.get("inputs") if data else {
-        "hours": "1", "pets_per_open": "18", "location": "Fire City (Last)", "fast_open": "yes"
+        "hours": "1", "pets_per_open": "1", "location": "Ninja Village", "fast_open": "no"
     }
     
     return render_template("index.html", locations_options=LOCATION_OPTIONS, result=result, inputs=inputs)
