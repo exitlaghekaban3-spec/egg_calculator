@@ -1,42 +1,59 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session
 
 # =====================================================================
-# 1. ИНСТРУМЕНТЫ (ПОДДЕРЖКА ВСЕХ БУКВ ДО NO)
+# 1. НАСТРОЙКА ПРИЛОЖЕНИЯ И СЕКРЕТНОГО КЛЮЧА
 # =====================================================================
-def parse_game_number(text_value):
-    text_value = str(text_value).strip().upper()
-    multipliers = {
-        'K': 10**3, 'M': 10**6, 'B': 10**9, 'T': 10**12, 
-        'QA': 10**15, 'QI': 10**18, 'SX': 10**21, 'SP': 10**24, 
-        'OC': 10**27, 'NO': 10**30
-    }
-    for letter, multiplier in multipliers.items():
-        if text_value.endswith(letter):
-            number_part = text_value.replace(letter, '')
-            return int(float(number_part) * multiplier)
-    return int(float(text_value))
+app = Flask(__name__)
+# Секретный ключ нужен Flask, чтобы безопасно хранить результаты расчетов в памяти
+app.secret_key = 'anime-astral-egg-calculator-secret-key'
 
-def format_game_number(number):
-    # Исправили строку 20: перенесли return на новую строчку
-    if number < 1000:
-        return str(number)
+# Словарь с суффиксами для перевода игровых значений в числа
+SUFFIXES = {
+    'K': 1_000,
+    'M': 1_000_000,
+    'B': 1_000_000_000,
+    'T': 1_000_000_000_000,
+    'QA': 1_000_000_000_000_000,
+    'QI': 1_000_000_000_000_000_000,
+    'SX': 1_000_000_000_000_000_000_000,
+    'SP': 1_000_000_000_000_000_000_000_000,
+}
+
+def parse_game_number(val_str):
+    """Превращает строковое значение из игры (например, '3.5K') в число."""
+    if not val_str:
+        return 0.0
+    val_str = str(val_str).strip().upper()
     
-    suffixes = [
-        ('NO', 10**30), ('OC', 10**27), ('SP', 10**24), ('SX', 10**21),
-        ('QI', 10**18), ('QA', 10**15), ('T', 10**12), ('B', 10**9), 
-        ('M', 10**6), ('K', 10**3)
-    ]
+    # Ищем, заканчивается ли строка на известный суффикс (например, QA или K)
+    for suffix, multiplier in SUFFIXES.items():
+        if val_str.endswith(suffix):
+            num_part = val_str[:-len(suffix)].strip()
+            try:
+                return float(num_part) * multiplier
+            except ValueError:
+                return 0.0
+    try:
+        return float(val_str)
+    except ValueError:
+        return 0.0
+
+def format_game_number(num):
+    """Превращает большое число обратно в красивый игровой формат."""
+    if num == 0:
+        return "0"
+    abs_num = abs(num)
     
-    for suffix, value in suffixes:
-        if number >= value:
-            short_num = round(number / value, 2)
-            # Исправили строку 29 (или около неё): тоже перенесли на новую строку
-            if short_num.is_integer():
-                return f"{int(short_num)}{suffix}"
-            return f"{short_num}{suffix}"
+    # Сортируем суффиксы от самых больших к меньшим
+    for suffix, multiplier in sorted(SUFFIXES.items(), key=lambda x: x[1], reverse=True):
+        if abs_num >= multiplier:
+            formatted = f"{num / multiplier:.2f}".rstrip('0').rstrip('.')
+            return f"{formatted}{suffix}"
+            
+    return f"{num:.2f}".rstrip('0').rstrip('.')
 
 # =====================================================================
-# 2. ТВОИ ЛОКАЦИИ
+# 2. ТВОИ ЛОКАЦИИ (СЮДА ДОБАВЛЯЙ НОВЫЕ)
 # =====================================================================
 LOCATIONS = {
     "Ninja Village": parse_game_number("50"),
@@ -46,44 +63,48 @@ LOCATIONS = {
     "Solo City": parse_game_number("2B"),
     "Slayer Village": parse_game_number("250B"),
     "Clover Island": parse_game_number("175T"),
-    "Summer Art Online": parse_game_number("25QA")
+    "Summer Art Online": parse_game_number("25QA"),
+    "Fire City": parse_game_number("75SX")
 }
 
-app = Flask(__name__)
-
 # =====================================================================
-# 3. ЛОГИКА САЙТА
+# 3. ЛОГИКА САЙТА (БЕЗ ПОВТОРНОЙ ОТПРАВКИ ФОРМЫ)
 # =====================================================================
 @app.route("/", methods=["GET", "POST"])
-def home():
-    result = None
+def index():
     if request.method == "POST":
-        location_name = request.form.get("location")
-        eggs_at_once_text = request.form.get("eggs_at_once", "1")
-        has_gamepass = "gamepass" in request.form
-        hours_text = request.form.get("hours", "1")
+        # 1. Собираем данные из формы
+        selected_loc = request.form.get("location")
+        user_money_str = request.form.get("money", "0")
         
-        egg_price = LOCATIONS.get(location_name, 0)
-        eggs_at_once = parse_game_number(eggs_at_once_text)
-        hours = parse_game_number(hours_text)
+        user_money = parse_game_number(user_money_str)
+        egg_cost = LOCATIONS.get(selected_loc, 0.0)
         
-        # Скорость по image_1ae931.png
-        open_speed_per_minute = 36 if has_gamepass else 18
-        
-        total_eggs = (hours * 60 * open_speed_per_minute) * eggs_at_once
-        total_cost = total_eggs * egg_price
-        
-        result = {
-            "location": location_name,
-            "egg_price": format_game_number(egg_price),
-            "total_eggs": format_game_number(total_eggs),
-            "total_cost": format_game_number(total_cost),
-            # Передаем введенные игроком данные обратно для сохранения в полях:
-            "user_eggs_at_once": eggs_at_once_text,
-            "user_hours": hours_text,
-            "has_gamepass": has_gamepass
+        # 2. Считаем математику
+        if egg_cost > 0:
+            total_eggs = int(user_money // egg_cost)
+            leftover = user_money % egg_cost
+        else:
+            total_eggs = 0
+            leftover = user_money
+            
+        # 3. Формируем результат расчетов
+        result_data = {
+            "selected_location": selected_loc,
+            "user_money": format_game_number(user_money),
+            "egg_cost": format_game_number(egg_cost),
+            "total_eggs": f"{total_eggs:,}",  # Разделение разрядов запятыми для красоты
+            "leftover": format_game_number(leftover)
         }
         
+        # 🌟 ХИТРЫЙ ТРЮК: сохраняем результат в сессию и делаем перенаправление!
+        session["calc_result"] = result_data
+        return redirect(url_for("index"))
+        
+    # Сюда пользователь попадает при обычном GET-запросе (или после редиректа)
+    # Забираем результат из памяти, если он там есть, и сразу удаляем
+    result = session.pop("calc_result", None)
+    
     return render_template("index.html", locations=LOCATIONS.keys(), result=result)
 
 if __name__ == "__main__":
